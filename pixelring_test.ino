@@ -62,7 +62,7 @@ void setup() {
   }
 
   ring.begin();
-  ring.setBrightness(60);
+  ring.setBrightness(255);
   ring.show();
 
   setup_rings();
@@ -90,36 +90,37 @@ bool allLit() {
 
 static bool direction = true;
 int pixels_colored = 0;
+const int sampleWindow = 50;
+unsigned int sample;
 
 void loop() {
+  unsigned long startMillis = millis();  // Start of sample window
+  unsigned int peakToPeak = 0;   // peak-to-peak level
 
-  int val = analogRead(MIC_PIN);
-  Serial.println(val);
+  unsigned int signalMax = 0;
+  unsigned int signalMin = 1024;
 
-  int pixelnum = random(0, NUM_PIXELS);
-
-  if (pixels_colored == NUM_PIXELS) {
-    for (int i = 0; i < NUM_PIXELS; i++) {
-      pixelstatus[i] = false;
-      ring.setPixelColor(i, 0, 0, 0);
+  while (millis() - startMillis < sampleWindow)
+  {
+    sample = analogRead(MIC_PIN);
+    if (sample < 1024)  // toss out spurious readings
+    {
+      if (sample > signalMax)
+      {
+        signalMax = sample;  // save just the max levels
+      }
+      else if (sample < signalMin)
+      {
+        signalMin = sample;  // save just the min levels
+      }
     }
-    ring.show();
-    pixels_colored = 0;
   }
+  peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
+  double volts = (peakToPeak * 5.0) / 1024;  // convert to volts
 
-  while(alreadyLit(pixelnum) == direction) {
-    pixelnum = random(0, NUM_PIXELS);
-  }
+  Serial.println(volts);
 
-  pixels_colored++;
-  pixelstatus[pixelnum] = direction;
-
-  int r = random(0, 255);
-  int g = random(0, 255);
-  int b = random(0, 255);
-
-  //ring.setPixelColor(pixelnum, r, g, b);
-  //ring.show();
-
-  delay(300);
+  double brightness_level = volts * 255;
+  /* ring.setPixelColor(20, brightness_level, 0, 0); */
+  /* ring.show(); */
 }
